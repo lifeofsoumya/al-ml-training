@@ -1,7 +1,7 @@
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import google.generativeai as genai
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 
@@ -21,22 +21,10 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 def extract_pdf(pdfs):
     text = ""
     for pdf in pdfs:
-        try:
-            # Create a PdfReader from the uploaded file directly
             pdf_reader = PdfReader(pdf)
             for page in pdf_reader.pages:
-                text += page.extract_text() or ""  # Handle None case
-        except Exception as e:
-            st.error(f"Error reading {pdf.name}: {e}")
+                text += page.extract_text()
     return text
-
-# def extract_pdf(pdfs):
-#     text = ""
-#     for pdf in pdfs:
-#         with pdfplumber.open(pdf) as pdf_reader:
-#             for page in pdf_reader.pages:
-#                 text += page.extract_text()
-#     return text
 
 def extract_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=300)
@@ -50,9 +38,9 @@ def get_vector_store(chunks):
 
 async def get_conversational_chain():
     prompt_template="""
-    You need to answer the question in simple terms, take in account all the details from given context. \n
-    If answer is not provided in the context, reply with "Answer could not be provided from the documents".
-    Do not provide made up answers. \n
+    You are a helpful assistant who provides answers based on the context provided. 
+    Please consider all relevant details from the context below when answering the question.
+    If you cannot find a direct answer, provide a related answer or suggest ways to find more information.\n\n
     Context: \n {context} \n
     Question: \n {question} \n
 
@@ -74,7 +62,7 @@ def user_input(asked_question):
     # Run asynchronous model loading within an event loop
     chain = asyncio.run(get_conversational_chain())
 
-    response = chain(
+    response = chain.invoke(
         {"input_documents": docs, "question": asked_question},
         return_only_outputs=True
     )
